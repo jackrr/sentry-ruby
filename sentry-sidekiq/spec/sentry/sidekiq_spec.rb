@@ -79,12 +79,6 @@ RSpec.describe Sentry::Sidekiq do
     transport.events = []
   end
 
-  it "has correct meta" do
-    expect(Sentry.sdk_meta).to eq(
-      { "name" => "sentry.ruby.sidekiq", "version" => Sentry::Sidekiq::VERSION }
-    )
-  end
-
   it "registers error handlers and middlewares" do
     expect(Sidekiq.error_handlers).to include(described_class::ErrorHandler)
     expect(Sidekiq.server_middleware.entries.first.klass).to eq(described_class::CleanupMiddleware)
@@ -93,8 +87,9 @@ RSpec.describe Sentry::Sidekiq do
   it "captures the exception with the CleanupMiddleware" do
     expect { process_job(processor, "SadWorker") }.to change { transport.events.size }.by(1)
 
-    event = transport.events.last
-    expect(Sentry::Event.get_message_from_exception(event.to_hash)).to eq("RuntimeError: I'm sad!")
+    event = transport.events.last.to_hash
+    expect(event[:sdk]).to eq({ name: "sentry.ruby.sidekiq", version: described_class::VERSION })
+    expect(Sentry::Event.get_message_from_exception(event)).to eq("RuntimeError: I'm sad!")
   end
 
   it "clears context from other workers and captures its own" do
@@ -124,6 +119,7 @@ RSpec.describe Sentry::Sidekiq do
 
     event = transport.events.last.to_hash
     expect(Sentry::Event.get_message_from_exception(event)).to eq("RuntimeError: Uhoh!")
+    expect(event[:sdk]).to eq({ name: "sentry.ruby.sidekiq", version: described_class::VERSION })
     expect(event[:transaction]).to eq "Sidekiq/startup"
   end
 

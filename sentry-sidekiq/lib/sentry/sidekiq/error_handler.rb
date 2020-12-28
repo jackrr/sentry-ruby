@@ -11,7 +11,7 @@ module Sentry
 
         Sentry.with_scope do |scope|
           scope.set_transaction_name transaction_from_context(context)
-          Sentry.capture_exception(
+          Sentry::Sidekiq.capture_exception(
             ex,
             extra: { sidekiq: context },
             hint: { background: false }
